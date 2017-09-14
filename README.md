@@ -11,6 +11,7 @@ Supports `@DataProvider` and `@UseDataProvider` on methods with parameters annot
 ## Limitations
 
 * Widening calls (like data provider with `int` for a method with `long` parameter) will fail with a `ParameterResolutionException`.
+* `@UseDataProvider` must not have custom resolvers or multiple locations. The convention support is not fully compatible yet.
 
 
 ## Migration

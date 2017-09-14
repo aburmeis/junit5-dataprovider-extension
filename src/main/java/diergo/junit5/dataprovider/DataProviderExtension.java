@@ -19,16 +19,27 @@ import java.util.stream.Stream;
 
 import diergo.junit5.dataprovider.DataGenerator.Data;
 
+/**
+ * This extension creates dynamic tests. It handles test methods annotated by {@link TestTemplate}
+ * and {@link DataProvider} or {@link DataProvider} and resolves the parameters.
+ */
 public class DataProviderExtension implements TestTemplateInvocationContextProvider, ParameterResolver {
 
     private static ExtensionContext.Namespace NAMESPACE = ExtensionContext.Namespace.create(DataProviderExtension.class);
 
     private final DataGenerator dataGenerator;
 
+    /**
+     * Creates an extension using the default {@link DataConverter}.
+     */
     public DataProviderExtension() {
         this(new DataConverter());
     }
 
+    /**
+     * Creates an extension using the passed subclass of {@link DataConverter}. To be used by
+     * default constructors of any subclass.
+     */
     protected DataProviderExtension(DataConverter converter) {
         this(new DataGenerator(converter));
     }
@@ -37,11 +48,18 @@ public class DataProviderExtension implements TestTemplateInvocationContextProvi
         this.dataGenerator = dataGenerator;
     }
 
+    /**
+     * Checks for any of {@link DataProvider} or {@link DataProvider} on the test method.
+     */
     @Override
     public boolean supportsTestTemplate(ExtensionContext context) {
         return usesDataProvider(context.getRequiredTestMethod());
     }
 
+    /**
+     * Generates data for the data provider and returns invocation contexts equal to the data size.
+     * The data is stored in the context store.
+     */
     @Override
     public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
         Data all = dataGenerator.generateData(context.getRequiredTestMethod(), context.getRequiredTestClass());
@@ -50,18 +68,20 @@ public class DataProviderExtension implements TestTemplateInvocationContextProvi
         return IntStream.range(0, all.getSize()).mapToObj(i -> any);
     }
 
+    /**
+     * Checks for any of {@link DataProvider} or {@link DataProvider} on the {@link TestTemplate} annotated test method.
+     */
     @Override
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
         return isTestTemplate(extensionContext.getRequiredTestMethod()) && usesDataProvider(extensionContext.getRequiredTestMethod());
     }
 
+    /**
+     * Retrieves the created data from the comtext store.
+     */
     @Override
     public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
-        return createParameter(parameterContext, extensionContext);
-    }
-
-    private Object createParameter(ParameterContext parameterContext, ExtensionContext context) {
-        Data all = (Data) context.getStore(NAMESPACE).get(context.getRequiredTestMethod());
+        Data all = (Data) extensionContext.getStore(NAMESPACE).get(extensionContext.getRequiredTestMethod());
         return all.getData(parameterContext.getIndex() == 0)[parameterContext.getIndex()];
     }
 
