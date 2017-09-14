@@ -1,0 +1,10 @@
+ext.versions = [
+        java             : '1.8',
+        gradle           : '4.1',
+        jacoco           : '0.7.9',
+        findbugs         : '3.0.1',
+        checkstyle       : '7.8.2',
+        junit            : '5.0.0',
+        junitDataprovider: '1.12.0',
+        hamcrest         : '1.3'
+]
