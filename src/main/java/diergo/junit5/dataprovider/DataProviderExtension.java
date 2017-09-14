@@ -4,82 +4,88 @@ import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import com.tngtech.java.junit.dataprovider.internal.DataConverter;
 
-import org.junit.jupiter.api.DynamicNode;
-import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
-import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
-import org.junit.jupiter.api.extension.TestInstancePostProcessor;
-import org.junit.platform.commons.util.AnnotationUtils;
+import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
+import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static diergo.junit5.dataprovider.DataProviderExecutionType.FLAT;
-import static java.util.function.Function.identity;
+import diergo.junit5.dataprovider.DataGenerator.Data;
 
-public class DataProviderExtension implements TestInstancePostProcessor, ParameterResolver {
+public class DataProviderExtension implements TestTemplateInvocationContextProvider, ParameterResolver {
 
     private static ExtensionContext.Namespace NAMESPACE = ExtensionContext.Namespace.create(DataProviderExtension.class);
 
-    private final TestGenerator testGenerator;
+    private final DataGenerator dataGenerator;
 
     public DataProviderExtension() {
         this(new DataConverter());
     }
 
-    protected DataProviderExtension(DataConverter dataConverter) {
-        this(new TestGenerator(dataConverter));
+    protected DataProviderExtension(DataConverter converter) {
+        this(new DataGenerator(converter));
     }
 
-    DataProviderExtension(TestGenerator testGenerator) {
-        this.testGenerator = testGenerator;
+    private DataProviderExtension(DataGenerator dataGenerator) {
+        this.dataGenerator = dataGenerator;
     }
 
     @Override
-    public void postProcessTestInstance(Object testInstance, ExtensionContext context) throws Exception {
-        Optional<DataProviderExecution> annotation = AnnotationUtils.findAnnotation(testInstance.getClass(), DataProviderExecution.class);
-        context.getStore(NAMESPACE).put(DataProviderExecutionType.class, annotation.map(DataProviderExecution::value).orElse(FLAT));
+    public boolean supportsTestTemplate(ExtensionContext context) {
+        return usesDataProvider(context.getRequiredTestMethod());
+    }
+
+    @Override
+    public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
+        Data all = dataGenerator.generateData(context.getRequiredTestMethod(), context.getRequiredTestClass());
+        DataContext any = new DataContext(context.getRequiredTestMethod(), all);
+        context.getStore(NAMESPACE).put(context.getRequiredTestMethod(), all);
+        return IntStream.range(0, all.getSize()).mapToObj(i -> any);
     }
 
     @Override
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
-        return isTestFactory(parameterContext.getDeclaringExecutable())
-                && needsDataProvided(parameterContext.getParameter());
+        return isTestTemplate(extensionContext.getRequiredTestMethod()) && usesDataProvider(extensionContext.getRequiredTestMethod());
     }
 
     @Override
-    public Object resolveParameter(ParameterContext parameterContext, ExtensionContext context) {
-        Object target = parameterContext.getTarget().orElseThrow(
-                () -> new ParameterResolutionException("Missing target for " + parameterContext));
-        DataProviderExecutionType executionType = (DataProviderExecutionType) context.getStore(NAMESPACE).get(DataProviderExecutionType.class);
-        return Stream.of(target.getClass().getMethods())
-                .filter(this::usesDataProvider)
-                .map(method -> testGenerator.generateExplodedTestMethodsFor(method, target, executionType))
-                .flatMap(identity());
+    public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
+        return createParameter(parameterContext, extensionContext);
     }
 
-    private boolean isTestFactory(Executable method) {
-        return method.getAnnotation(TestFactory.class) != null;
+    private Object createParameter(ParameterContext parameterContext, ExtensionContext context) {
+        Data all = (Data) context.getStore(NAMESPACE).get(context.getRequiredTestMethod());
+        return all.getData(parameterContext.getIndex() == 0)[parameterContext.getIndex()];
     }
 
-    private boolean needsDataProvided(Parameter parameter) {
-        if (Stream.class.equals(parameter.getType())) {
-            ParameterizedType parameterizedType = (ParameterizedType) parameter.getParameterizedType();
-            Type firstGenericArgument = parameterizedType.getActualTypeArguments()[0];
-            return DynamicNode.class.equals(firstGenericArgument);
+    private boolean isTestTemplate(Executable method) {
+        return method.getAnnotation(TestTemplate.class) != null;
+    }
+
+    private boolean usesDataProvider(Executable method) {
+        return method.getAnnotation(DataProvider.class) != null || method.getAnnotation(UseDataProvider.class) != null;
+    }
+
+    private static class DataContext implements TestTemplateInvocationContext {
+        private final Method testMethod;
+        private final DataGenerator.Data data;
+        private final AtomicInteger idx = new AtomicInteger(-1);
+
+        DataContext(Method testMethod, Data data) {
+            this.testMethod = testMethod;
+            this.data = data;
         }
-        return false;
-    }
 
-    private boolean usesDataProvider(Method method) {
-        return method.getReturnType().equals(Void.TYPE) &&
-                (method.getAnnotation(DataProvider.class) != null || method.getAnnotation(UseDataProvider.class) != null);
+        @Override
+        public String getDisplayName(int invocationIndex) {
+            return data.createName(testMethod, invocationIndex - 1);
+        }
     }
 }

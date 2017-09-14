@@ -5,23 +5,22 @@
 
 ## Features
 
-Supports `@DataProvider` and `@UseDataProvider` by creating `DynamicTest` instances out of it.
+Supports `@DataProvider` and `@UseDataProvider` on methods with parameters annotated by `@TestTemplate`. Creates dynamic tests based on test templates.
 
 
 ## Limitations
 
-Access to `FrameworkMethod` in `@DataProvider` is not supported.
+* Access to `FrameworkMethod` in `@DataProvider` is not supported.
+* Widening calls (like data provider with `int` for a method with `long` parameter will fail with a `ParameterResolutionException`.
 
 
 ## Migration
 
-* Replace the old JUnit annotations by JUnit5 substitutes (typically an import change like `org.junit.Test` to `org.junit.jupiter.api.Test`.
-* Remove the `@RunWith` annotation from the test.
-* Let the test implement `UsingProvidedData`.
-* To group tests by method annotate the test by `@DataProviderExecution(GROUPED)`.
+* Replace the old JUnit annotations by JUnit5 substitutes (typically an import change like `org.junit.Test` to `org.junit.jupiter.api.TestTemplate`.
+* Replace the `@RunWith` annotation of the test class by `@ExtendWith(DataProviderExtension.class)`.
 
 
 ## Providing a Custom DataConverter
 
 * Inherit from the [DataProviderExtension](src/main/java/diergo/junit5/dataprovider/DataProviderExtension.java) and pass a custom `DataConverter` to the constructor.
-* Write a method similar to that in [UsingProvidedData](src/main/java/diergo/junit5/dataprovider/UsingProvidedData.java) replacing the extension class by your own.
+* Use the new extension in the `@ExtendWith` annotation.

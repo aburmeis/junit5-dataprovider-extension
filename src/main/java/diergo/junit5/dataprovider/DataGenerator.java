@@ -6,34 +6,27 @@ import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import com.tngtech.java.junit.dataprovider.internal.DataConverter;
 import com.tngtech.java.junit.dataprovider.internal.placeholder.BasePlaceholder;
 
-import org.junit.jupiter.api.DynamicNode;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
-import static diergo.junit5.dataprovider.DataProviderExecutionType.GROUPED;
-import static org.junit.jupiter.api.DynamicContainer.dynamicContainer;
-import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import static org.junit.platform.commons.util.ReflectionUtils.findMethods;
 import static org.junit.platform.commons.util.ReflectionUtils.invokeMethod;
 
-class TestGenerator {
-    private final DataConverter dataConverter;
+class DataGenerator {
 
-    TestGenerator(DataConverter dataConverter) {
-        this.dataConverter = dataConverter;
+    private final DataConverter converter;
+
+    DataGenerator(DataConverter converter) {
+        this.converter = converter;
     }
 
-    Stream<DynamicNode> generateExplodedTestMethodsFor(Method testMethod, Object target, DataProviderExecutionType executionType) {
-        MethodHandles.Lookup lookup = MethodHandles.publicLookup().in(target.getClass());
+    Data generateData(Method testMethod, Class<?> testClass) {
         UseDataProvider useDataProvider = testMethod.getAnnotation(UseDataProvider.class);
         List<Object[]> data;
         DataProvider dataProvider;
@@ -41,37 +34,19 @@ class TestGenerator {
             dataProvider = testMethod.getAnnotation(DataProvider.class);
             data = fetchData(dataProvider.value(), dataProvider, testMethod);
         } else {
-            Class<?> dataProviderType = useDataProvider.location().length == 0 ? target.getClass() : useDataProvider.location()[0];
+            Class<?> dataProviderType = useDataProvider.location().length == 0 ? testClass : useDataProvider.location()[0];
             Method dataProviderMethod = findMethods(dataProviderType, dataProviderFilter(testMethod.getName(), useDataProvider.value()))
                     .stream().findFirst().orElseThrow(
                             () -> new ParameterResolutionException("Cannot find data provider for " + testMethod));
             dataProvider = dataProviderMethod.getAnnotation(DataProvider.class);
             data = fetchData(invokeMethod(dataProviderMethod, dataProviderType), dataProvider, testMethod);
         }
-        try {
-            String format = dataProvider.format();
-            MethodHandle handle = lookup.unreflect(testMethod).bindTo(target);
-            Stream<DynamicNode> tests = IntStream.range(0, data.size())
-                    .mapToObj(i -> dynamicTest(createName(format, i, testMethod, data.get(i)), () -> handle.invokeWithArguments(data.get(i))));
-            return executionType == GROUPED ? Stream.of(dynamicContainer(testMethod.getName(), tests)) : tests;
-        } catch (IllegalAccessException e) {
-            throw new ParameterResolutionException("Cannot access test method " + testMethod, e);
-        }
-
-    }
-
-    private String createName(String format, int idx, Method testMethod, Object... data) {
-        String result = format;
-        for (BasePlaceholder placeHolder : Placeholders.all()) {
-            placeHolder.setContext(testMethod, idx, Arrays.copyOf(data, data.length));
-            result = placeHolder.process(result);
-        }
-        return result;
+        return new Data(dataProvider, data);
     }
 
     private List<Object[]> fetchData(Object data, DataProvider dataProvider, Method testMethod) {
         try {
-            return dataConverter.convert(data, testMethod.isVarArgs(), testMethod.getParameterTypes(), dataProvider);
+            return converter.convert(data, testMethod.isVarArgs(), testMethod.getParameterTypes(), dataProvider);
         } catch (RuntimeException e) {
             throw new ParameterResolutionException("Cannot convert data provided for " + testMethod, e);
         }
@@ -88,6 +63,34 @@ class TestGenerator {
             return method -> !method.getReturnType().equals(Void.TYPE) && names.contains(method.getName());
         } else {
             return method -> method.getName().equals(dataProviderName);
+        }
+    }
+
+    static class Data {
+        private final DataProvider provider;
+        private final List<Object[]> data;
+        private final AtomicInteger i = new AtomicInteger(-1);
+
+        Data(DataProvider provider, List<Object[]> data) {
+            this.provider = provider;
+            this.data = data;
+        }
+
+        int getSize() {
+            return data.size();
+        }
+
+        Object[] getData(boolean firstParam) {
+            return data.get(firstParam ? i.incrementAndGet() : i.get());
+        }
+
+        String createName(Method testMethod, int idx) {
+            String result = provider.format();
+            for (BasePlaceholder placeHolder : Placeholders.all()) {
+                placeHolder.setContext(testMethod, idx, Arrays.copyOf(data.get(idx), data.get(idx).length));
+                result = placeHolder.process(result);
+            }
+            return result;
         }
     }
 }
