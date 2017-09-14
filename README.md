@@ -27,9 +27,7 @@ Supports `@DataProvider` and `@UseDataProvider` on methods with parameters annot
 * Use the new extension in the `@ExtendWith` annotation.
 
 
-## Contribution
+## Contribution ![CI status](https://travis-ci.org/aburmeis/junit5-dataprovider-extension.svg)
 
-## Build ![CI status](https://travis-ci.org/aburmeis/junit5-dataprovider-extension.svg)
-
-The project is build with [gradle](https://gradle.org/) continuously by
+The project is build with [Gradle](https://gradle.org/) continuously by
 [Travis CI](https://travis-ci.org/aburmeis/junit5-dataprovider-extension/).
