@@ -13,12 +13,14 @@ import java.util.List;
 
 import static com.tngtech.java.junit.dataprovider.DataProviders.$;
 import static com.tngtech.java.junit.dataprovider.DataProviders.$$;
+import static diergo.junit5.dataprovider.DataProviderExecutionType.GROUPED;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 @SuppressWarnings("unused")
 // This is mostly copy of DataProviderJavaAcceptanceTest.java from https://github.com/TNG/junit-dataprovider
-public class DataProviderJUnit5AcceptanceTest implements UsingProvidedDataGroupedByMethod {
+@DataProviderExecution(GROUPED)
+public class DataProviderJUnit5AcceptanceTest implements UsingProvidedData {
 
     @Test
     public void testAddWithoutDataProvider() {

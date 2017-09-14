@@ -17,7 +17,8 @@ Access to `FrameworkMethod` in `@DataProvider` is not supported.
 
 * Replace the old JUnit annotations by JUnit5 substitutes (typically an import change like `org.junit.Test` to `org.junit.jupiter.api.Test`.
 * Remove the `@RunWith` annotation from the test.
-* Let the test implement `UsingProvidedData` or `UsingProvidedDataGroupedByMethod` (to get tests grouped by method).
+* Let the test implement `UsingProvidedData`.
+* To group tests by method annotate the test by `@DataProviderExecution(GROUPED)`.
 
 
 ## Providing a Custom DataConverter

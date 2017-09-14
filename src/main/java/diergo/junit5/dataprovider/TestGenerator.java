@@ -6,6 +6,7 @@ import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import com.tngtech.java.junit.dataprovider.internal.DataConverter;
 import com.tngtech.java.junit.dataprovider.internal.placeholder.BasePlaceholder;
 
+import org.junit.jupiter.api.DynamicNode;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 
 import java.lang.invoke.MethodHandle;
@@ -18,6 +19,9 @@ import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static diergo.junit5.dataprovider.DataProviderExecutionType.GROUPED;
+import static org.junit.jupiter.api.DynamicContainer.dynamicContainer;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import static org.junit.platform.commons.util.ReflectionUtils.findMethods;
 import static org.junit.platform.commons.util.ReflectionUtils.invokeMethod;
 
@@ -28,7 +32,7 @@ class TestGenerator {
         this.dataConverter = dataConverter;
     }
 
-    Stream<DataProvided> generateExplodedTestMethodsFor(Method testMethod, Object target) {
+    Stream<DynamicNode> generateExplodedTestMethodsFor(Method testMethod, Object target, DataProviderExecutionType executionType) {
         MethodHandles.Lookup lookup = MethodHandles.publicLookup().in(target.getClass());
         UseDataProvider useDataProvider = testMethod.getAnnotation(UseDataProvider.class);
         List<Object[]> data;
@@ -47,8 +51,9 @@ class TestGenerator {
         try {
             String format = dataProvider.format();
             MethodHandle handle = lookup.unreflect(testMethod).bindTo(target);
-            return IntStream.range(0, data.size())
-                    .mapToObj(i -> new DataProvided(testMethod.getName(), createName(format, i, testMethod, data.get(i)), handle, data.get(i)));
+            Stream<DynamicNode> tests = IntStream.range(0, data.size())
+                    .mapToObj(i -> dynamicTest(createName(format, i, testMethod, data.get(i)), () -> handle.invokeWithArguments(data.get(i))));
+            return executionType == GROUPED ? Stream.of(dynamicContainer(testMethod.getName(), tests)) : tests;
         } catch (IllegalAccessException e) {
             throw new ParameterResolutionException("Cannot access test method " + testMethod, e);
         }
