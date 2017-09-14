@@ -8,6 +8,7 @@ import com.tngtech.java.junit.dataprovider.internal.placeholder.BasePlaceholder;
 
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,7 +40,9 @@ class DataGenerator {
                     .stream().findFirst().orElseThrow(
                             () -> new ParameterResolutionException("Cannot find data provider for " + testMethod));
             dataProvider = dataProviderMethod.getAnnotation(DataProvider.class);
-            data = fetchData(invokeMethod(dataProviderMethod, dataProviderType), dataProvider, testMethod);
+            boolean passMethod = dataProviderMethod.getParameterCount() == 1 && Executable.class.isAssignableFrom(dataProviderMethod.getParameterTypes()[0]);
+            Object rawData = passMethod ? invokeMethod(dataProviderMethod, dataProviderType, testMethod) : invokeMethod(dataProviderMethod, dataProviderType);
+            data = fetchData(rawData, dataProvider, testMethod);
         }
         return new Data(dataProvider, data);
     }

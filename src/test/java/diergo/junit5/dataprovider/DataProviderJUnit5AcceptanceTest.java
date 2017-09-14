@@ -9,6 +9,11 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.reflect.Executable;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -238,6 +243,33 @@ public class DataProviderJUnit5AcceptanceTest {
     public void testIsEmptyString2(String str) {
         boolean isEmpty = str == null || str.isEmpty();
         assertThat(isEmpty, is(true));
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.METHOD)
+    public @interface ExternalFile {
+        public enum Format {
+            CSV,
+            XML,
+            XLS;
+        }
+
+        Format format();
+
+        String value();
+    }
+
+    @DataProvider
+    public static Object[][] loadFromExternalFile(Executable testMethod) {
+        String testDataFile = testMethod.getAnnotation(ExternalFile.class).value();
+        return new Object[][]{{testDataFile}};
+    }
+
+    @UseDataProvider("loadFromExternalFile")
+    @ExternalFile(format = ExternalFile.Format.CSV, value = "testdata.csv")
+    @TestTemplate
+    public void testThatUsesUniversalDataProvider(String testData) {
+        assertThat(testData, is("testdata.csv"));
     }
 
     @DataProvider

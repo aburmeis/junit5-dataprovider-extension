@@ -10,13 +10,13 @@ Supports `@DataProvider` and `@UseDataProvider` on methods with parameters annot
 
 ## Limitations
 
-* Access to `FrameworkMethod` in `@DataProvider` is not supported.
-* Widening calls (like data provider with `int` for a method with `long` parameter will fail with a `ParameterResolutionException`.
+* Widening calls (like data provider with `int` for a method with `long` parameter) will fail with a `ParameterResolutionException`.
 
 
 ## Migration
 
 * Replace the old JUnit annotations by JUnit5 substitutes (typically an import change like `org.junit.Test` to `org.junit.jupiter.api.TestTemplate`.
+* Access to `FrameworkMethod` in `@DataProvider` has to be replaced by `Executable`.
 * Replace the `@RunWith` annotation of the test class by `@ExtendWith(DataProviderExtension.class)`.
 
 
