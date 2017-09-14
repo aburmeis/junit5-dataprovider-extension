@@ -1,10 +1,18 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.junit.platform:junit-platform-gradle-plugin:1.0.0'
+    }
+}
+
 plugins {
     id 'java'
     id 'jacoco'
     id 'findbugs'
-    id 'checkstyle'
 }
-
+apply plugin: 'org.junit.platform.gradle.plugin'
 apply from: 'versions.gradle'
 
 sourceCompatibility = versions.java
@@ -25,12 +33,21 @@ jacoco {
     toolVersion = versions.jacoco
 }
 
-checkstyle {
-    toolVersion = versions.checkstyle
+jacocoTestReport {
+    reports {
+        html.enabled true
+    }
 }
 
 findbugs {
     toolVersion = versions.findbugs
+}
+
+tasks.withType(FindBugs) {
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
 }
 
 jar {
@@ -39,6 +56,8 @@ jar {
                 'Implementation-Version': version)
     }
 }
+
+check.dependsOn jacocoTestCoverageVerification, jacocoTestReport
 
 wrapper {
     gradleVersion = versions.gradle
