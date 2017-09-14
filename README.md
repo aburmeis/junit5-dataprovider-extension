@@ -25,3 +25,11 @@ Supports `@DataProvider` and `@UseDataProvider` on methods with parameters annot
 
 * Inherit from the [DataProviderExtension](src/main/java/diergo/junit5/dataprovider/DataProviderExtension.java) and pass a custom `DataConverter` to the constructor.
 * Use the new extension in the `@ExtendWith` annotation.
+
+
+## Contribution
+
+## Build ![CI status](https://travis-ci.org/aburmeis/junit5-dataprovider-extension.svg)
+
+The project is build with [gradle](https://gradle.org/) continuously by
+[Travis CI](https://travis-ci.org/aburmeis/junit5-dataprovider-extension/).
