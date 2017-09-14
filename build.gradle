@@ -10,8 +10,13 @@ apply from: 'versions.gradle'
 sourceCompatibility = versions.java
 targetCompatibility = versions.java
 
+repositories {
+    mavenCentral()
+}
+
 dependencies {
-    compile "org.junit.jupiter:junit-jupiter-api:${versions.junit}"
+    compile "org.junit.jupiter:junit-jupiter-api:${versions.junit}",
+            "com.tngtech.java:junit-dataprovider:${versions.dataprovider}"
     testCompile "org.hamcrest:hamcrest-library:${versions.hamcrest}"
     testRuntime "org.junit.jupiter:junit-jupiter-engine:${versions.junit}"
 }
