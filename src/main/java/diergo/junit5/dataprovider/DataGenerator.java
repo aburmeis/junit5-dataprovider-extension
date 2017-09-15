@@ -10,12 +10,17 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
 
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
+import static java.lang.Character.toUpperCase;
 import static java.util.Arrays.copyOf;
+import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
 import static org.junit.platform.commons.util.ReflectionUtils.findMethods;
 import static org.junit.platform.commons.util.ReflectionUtils.invokeMethod;
 
@@ -29,19 +34,20 @@ class DataGenerator {
 
     Data generateData(Method testMethod, Class<?> testClass) {
         UseDataProvider useDataProvider = testMethod.getAnnotation(UseDataProvider.class);
-        List<DataSet> dataSets = new ArrayList<>();
+        List<DataSet> dataSets;
         if (useDataProvider == null) {
             DataProvider dataProvider = testMethod.getAnnotation(DataProvider.class);
-            dataSets.add(new DataSet(dataProvider, fetchData(dataProvider.value(), dataProvider, testMethod)));
+            dataSets = singletonList(new DataSet(dataProvider, fetchData(dataProvider.value(), dataProvider, testMethod)));
         } else {
-            Class<?> dataProviderType = useDataProvider.location().length == 0 ? testClass : useDataProvider.location()[0];
-            Method dataProviderMethod = findMethods(dataProviderType, dataProviderFilter(testMethod.getName(), useDataProvider.value()))
-                    .stream().findFirst().orElseThrow(
-                            () -> new ParameterResolutionException("Cannot find data provider for " + testMethod));
-            boolean passMethod = dataProviderMethod.getParameterCount() == 1 && Executable.class.isAssignableFrom(dataProviderMethod.getParameterTypes()[0]);
-            Object rawData = passMethod ? invokeMethod(dataProviderMethod, dataProviderType, testMethod) : invokeMethod(dataProviderMethod, dataProviderType);
-            DataProvider dataProvider = dataProviderMethod.getAnnotation(DataProvider.class);
-            dataSets.add(new DataSet(dataProvider, fetchData(rawData, dataProvider, testMethod)));
+            dataSets = (useDataProvider.location().length == 0 ? Stream.of(testClass) : Stream.of(useDataProvider.location()))
+                    .map(dataProviderType -> {
+                        Method dataProviderMethod = findMethods(dataProviderType, dataProviderFilter(testMethod.getName(), useDataProvider.value()))
+                                .stream().findFirst().orElseThrow(() -> new ParameterResolutionException("Cannot find data provider for " + testMethod));
+                        Object rawData = needsExecutableParameter(dataProviderMethod) ? invokeMethod(dataProviderMethod, dataProviderType, testMethod) : invokeMethod(dataProviderMethod, dataProviderType);
+                        DataProvider dataProvider = dataProviderMethod.getAnnotation(DataProvider.class);
+                        return new DataSet(dataProvider, fetchData(rawData, dataProvider, testMethod));
+                    })
+                    .collect(toList());
         }
         return new Data(dataSets);
     }
@@ -56,16 +62,22 @@ class DataGenerator {
 
     private Predicate<Method> dataProviderFilter(String testMethodName, String dataProviderName) {
         if (dataProviderName.equals(UseDataProvider.DEFAULT_VALUE)) {
-            List<String> names = new ArrayList<>();
-            names.add(testMethodName);
-            if (testMethodName.startsWith("test")) {
-                names.add("data" + testMethodName.substring(4));
-                names.add("dataProvider" + testMethodName.substring(4));
-            }
-            return method -> !method.getReturnType().equals(Void.TYPE) && names.contains(method.getName());
+            Set<String> methodNames = new HashSet<>();
+            methodNames.add(testMethodName);
+            methodNames.add(testMethodName.replaceAll("^test", "dataProvider"));
+            methodNames.add(testMethodName.replaceAll("^test", "data"));
+            methodNames.add("dataProvider" + toUpperCase(testMethodName.charAt(0)) + testMethodName.substring(1));
+            methodNames.add("data" + toUpperCase(testMethodName.charAt(0)) + testMethodName.substring(1));
+            return method -> !method.getReturnType().equals(Void.TYPE)
+                    && (method.getParameterTypes().length == 0 || needsExecutableParameter(method))
+                    && methodNames.contains(method.getName());
         } else {
             return method -> method.getName().equals(dataProviderName);
         }
+    }
+
+    private boolean needsExecutableParameter(Method method) {
+        return method.getParameterTypes().length == 1 && Executable.class.isAssignableFrom(method.getParameterTypes()[0]);
     }
 
     static class Data {
