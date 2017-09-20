@@ -11,6 +11,8 @@ plugins {
     id 'java'
     id 'jacoco'
     id 'findbugs'
+    id 'maven-publish'
+    id "com.jfrog.bintray" version "1.7.3"
 }
 apply plugin: 'org.junit.platform.gradle.plugin'
 apply from: 'versions.gradle'
@@ -50,11 +52,47 @@ tasks.withType(FindBugs) {
     }
 }
 
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives sourcesJar
+}
+
 jar {
     manifest {
         attributes('Implementation-Title': 'JUnit dataprovider extension',
                 'Implementation-Version': version)
     }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            pom.withXml {
+                // adjust dependency scopes
+                asNode().dependencies.'*'.each() {
+                    it.scope*.value = 'compile'
+                }
+            }
+            from components.java
+            artifact sourcesJar
+        }
+    }
+}
+
+bintray {
+    user = 'aburmeis'
+    key = System.getenv('BINTRAY_KEY')
+    pkg {
+        repo = 'maven'
+        name = project.name
+        licenses = ['Apache-2.0']
+        vcsUrl = 'https://github.com/aburmeis/junit5-dataprovider-extension.git'
+    }
+    publications = ['mavenJava']
 }
 
 check.dependsOn jacocoTestCoverageVerification, jacocoTestReport
