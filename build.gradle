@@ -89,8 +89,6 @@ bintray {
     pkg {
         repo = 'maven'
         name = project.name
-        licenses = ['Apache-2.0']
-        vcsUrl = 'https://github.com/aburmeis/junit5-dataprovider-extension.git'
     }
     publications = ['mavenJava']
 }
