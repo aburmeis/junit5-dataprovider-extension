@@ -1,6 +1,11 @@
 # junit5-dataprovider-extension
 
-[JUnit5](https://github.com/junit-team/junit5) extension to use [data providers](https://github.com/TNG/junit-dataprovider) easily.
+A [TestNG](http://testng.org/doc/index.html) like dataprovider extension for [JUnit 5](https://github.com/junit-team/junit5), see [junit-dataprovider](https://github.com/TNG/junit-dataprovider).
+
+
+## Usage [![Download](https://api.bintray.com/packages/aburmeis/maven/junit5-dataprovider-extension/images/download.svg)](https://bintray.com/aburmeis/maven/junit5-dataprovider-extension/_latestVersion)
+
+The extension can be found in the [JCenter](http://jcenter.bintray.com) repository. It has transitive dependencies on `junit-jupiter-api` and `junit-dataprovider`. To run the tests you will at least need an JUnit 5 engine dependency.
 
 
 ## Features
